@@ -55,6 +55,8 @@ namespace MyLeasing.Web
             /* Configuracion Injeccion de dependencias */
             services.AddTransient<SeedDb>();
             services.AddScoped<IUserHelper, UserHelper>();
+            services.AddScoped<ICombosHelper, CombosHelper>();
+            services.AddScoped<IConvertHelper, ConvertHelper>();
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
