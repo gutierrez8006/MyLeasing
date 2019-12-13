@@ -20,17 +20,20 @@ namespace MyLeasing.Web.Controllers
         private readonly IUserHelper _userHelper;
         private readonly ICombosHelper _combosHelper;
         private readonly IConvertHelper _convertHelper;
+        private readonly IImageHelper _imageHelper;
 
         public OwnersController(
             DataContext dataContext,
             IUserHelper userHelper,
             ICombosHelper combosHelper,
-            IConvertHelper convertHelper)
+            IConvertHelper convertHelper,
+            IImageHelper imageHelper)
         {
             _dataContext = dataContext;
             _userHelper = userHelper;
             _combosHelper = combosHelper;
             _convertHelper = convertHelper;
+            _imageHelper = imageHelper;
         }
 
         // GET: Owners
@@ -286,6 +289,77 @@ namespace MyLeasing.Web.Controllers
                 await _dataContext.SaveChangesAsync();
 
                 return RedirectToAction($"Details/{model.OwnerId}");
+            }
+
+            return View(model);
+        }
+
+        public async Task<IActionResult> DetailsProperty(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var property = await _dataContext.Properties
+                .Include(o => o.Owner)
+                .ThenInclude(o => o.User)
+                .Include(o => o.Contracts)
+                .ThenInclude(c => c.Lessee)
+                .ThenInclude(l => l.User)
+                .Include(o => o.PropertyType)
+                .Include(p => p.PropertyImages)
+                .FirstOrDefaultAsync(m => m.Id == id);
+            if (property == null)
+            {
+                return NotFound();
+            }
+
+            return View(property);
+        }
+
+        public async Task<IActionResult> AddImage(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var property = await _dataContext.Properties.FindAsync(id.Value);
+            if (property == null)
+            {
+                return NotFound();
+            }
+
+            var model = new PropertyImageViewModel
+            {
+                Id = property.Id
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddImage(PropertyImageViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var path = string.Empty;
+
+                if (model.ImageFile != null)
+                {
+                    path = await _imageHelper.UploadImageAsync(model.ImageFile);
+                }
+
+                var propertyImage = new PropertyImage
+                {
+                    ImageUrl = path,
+                    Property = await _dataContext.Properties.FindAsync(model.Id)
+                };
+
+                _dataContext.PropertyImages.Add(propertyImage);
+                await _dataContext.SaveChangesAsync();
+                return RedirectToAction($"{nameof(DetailsProperty)}/{model.Id}");
             }
 
             return View(model);
